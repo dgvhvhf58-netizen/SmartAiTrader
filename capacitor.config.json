@@ -1,0 +1,9 @@
+
+{
+  "appId": "com.smartaitrader.power",
+  "appName": "SMART AI TRADER POWER",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
