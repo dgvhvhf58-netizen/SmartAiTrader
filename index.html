@@ -1,0 +1,213 @@
+
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080e19">
+<title>SMART AI TRADER POWER</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;padding:16px;
+ background:#080e19;color:white;
+ font-family:Arial,sans-serif;
+}
+h2{text-align:center;color:#00e5a0}
+.card{
+ background:#151f30;padding:18px;
+ border-radius:14px;margin:15px 0;
+}
+select,button{
+ padding:13px;border:0;
+ border-radius:9px;margin:5px;
+}
+select{background:#26364d;color:white}
+button{
+ background:#00c991;color:#001b13;
+ font-weight:bold;
+}
+.signal{
+ text-align:center;font-size:27px;
+ font-weight:bold;padding:18px;
+}
+.green{color:#00e5a0}
+.red{color:#ff5268}
+.yellow{color:#ffc857}
+small{color:#aab7c8}
+</style>
+</head>
+
+<body>
+
+<h2>SMART AI TRADER POWER</h2>
+
+<div class="card">
+<h3>LIVE MARKET ANALYSIS</h3>
+<p>Market: BTC / USDT</p>
+<p>Live Price: <b id="price">Loading...</b></p>
+
+<p>Select Timeframe:</p>
+<select id="tf">
+<option value="1">1 Minute</option>
+<option value="2">2 Minutes</option>
+<option value="3">3 Minutes</option>
+<option value="5">5 Minutes</option>
+<option value="10">10 Minutes</option>
+<option value="15">15 Minutes</option>
+</select>
+
+<button onclick="analyze()">ANALYZE MARKET</button>
+</div>
+
+<div class="card">
+<h3>TRADING SIGNAL</h3>
+<div id="signal" class="signal yellow">WAITING</div>
+<p>Confidence: <b id="confidence">--</b></p>
+<p>RSI: <b id="rsi">--</b></p>
+<p>EMA Trend: <b id="ema">--</b></p>
+<p>Risk: <b id="risk">--</b></p>
+<p id="reason">Waiting for market data.</p>
+</div>
+
+<div class="card">
+<h3>MARKET STATUS</h3>
+<p id="status">Connecting to Binance...</p>
+<small>Public Binance BTC/USDT data. Signals are estimates, not guaranteed predictions.</small>
+</div>
+
+<script>
+async function analyze(){
+
+ const tf=Number(document.getElementById('tf').value);
+ const status=document.getElementById('status');
+
+ status.innerText='Analyzing market...';
+
+ try{
+
+  const url='https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=300';
+
+  const response=await fetch(url);
+
+  if(!response.ok) throw Error('Market connection failed');
+
+  const data=await response.json();
+
+  if(!Array.isArray(data)||data.length<220)
+  throw Error('Not enough market data');
+
+  const candles=data.slice(0,-1).map(x=>({
+   open:+x[1],
+   high:+x[2],
+   low:+x[3],
+   close:+x[4],
+   volume:+x[5]
+  }));
+
+  const grouped=[];
+
+  for(let i=0;i+tf<=candles.length;i+=tf){
+
+   const group=candles.slice(i,i+tf);
+
+   grouped.push({
+    open:group[0].open,
+    close:group[group.length-1].close,
+    high:Math.max(...group.map(x=>x.high)),
+    low:Math.min(...group.map(x=>x.low)),
+    volume:group.reduce((s,x)=>s+x.volume,0)
+   });
+
+  }
+
+  const closes=grouped.map(x=>x.close);
+
+  function ema(values,period){
+   const k=2/(period+1);
+   let result=values[0];
+
+   for(let i=1;i<values.length;i++){
+    result=values[i]*k+result*(1-k);
+   }
+
+   return result;
+  }
+
+  let gains=0,losses=0;
+
+  for(let i=closes.length-14;i<closes.length;i++){
+   const change=closes[i]-closes[i-1];
+
+   if(change>0) gains+=change;
+   else losses-=change;
+  }
+
+  const avgGain=gains/14;
+  const avgLoss=losses/14;
+
+  const rsi=avgLoss===0?100:
+  100-(100/(1+avgGain/avgLoss));
+
+  const fast=ema(closes.slice(-100),20);
+  const slow=ema(closes.slice(-200),50);
+
+  const bullish=fast>slow&&rsi>52&&rsi<70;
+  const bearish=fast<slow&&rsi<48&&rsi>30;
+
+  let signal='NO TRADE';
+  let confidence='--';
+  let risk='HIGH';
+  let reason='Market uncertain. Avoid trading.';
+
+  if(bullish){
+   signal='BUY / UP';
+   confidence='65%';
+   risk='MEDIUM';
+   reason='EMA and RSI support bullish momentum.';
+  }
+
+  if(bearish){
+   signal='SELL / DOWN';
+   confidence='65%';
+   risk='MEDIUM';
+   reason='EMA and RSI support bearish momentum.';
+  }
+
+  document.getElementById('price').innerText=
+  closes.at(-1).toFixed(2)+' USDT';
+
+  const box=document.getElementById('signal');
+
+  box.innerText=signal;
+  box.className='signal '+
+  (bullish?'green':bearish?'red':'yellow');
+
+  document.getElementById('confidence').innerText=confidence;
+  document.getElementById('rsi').innerText=rsi.toFixed(2);
+
+  document.getElementById('ema').innerText=
+  fast>slow?'BULLISH':'BEARISH';
+
+  document.getElementById('risk').innerText=risk;
+  document.getElementById('reason').innerText=reason;
+
+  status.innerText='Live market data updated.';
+
+ }catch(error){
+
+  document.getElementById('signal').innerText='NO TRADE';
+  document.getElementById('signal').className='signal yellow';
+  status.innerText=error.message;
+
+ }
+
+}
+
+analyze();
+setInterval(analyze,30000);
+</script>
+
+</body>
+</html>
