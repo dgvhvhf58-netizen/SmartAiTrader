@@ -1,5 +1,4 @@
-k
-name: SMART AI TRADER POWER Android Build
+
 
 on:
   workflow_dispatch:
