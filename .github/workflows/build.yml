@@ -1,5 +1,5 @@
-
-name: Build SMART AI TRADER POWER APK
+k
+name: SMART AI TRADER POWER Android Build
 
 on:
   workflow_dispatch:
@@ -7,42 +7,56 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build:
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout project
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - name: Install dependencies
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Dependencies
         run: npm install
 
-      - name: Prepare web assets
+      - name: Prepare Web Directory
         run: |
           mkdir -p www
           cp index.html www/index.html
           cp manifest.json www/manifest.json
 
-      - name: Add Android platform
+      - name: Create Android Project
         run: npx cap add android
 
-      - name: Sync Android
+      - name: Sync Capacitor Android
         run: npx cap sync android
 
-      - name: Build APK
+      - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: SMART-AI-TRADER-POWER-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
